@@ -1,3 +1,3 @@
-# fl_score_app
+# Flutter Score Application
 
 A new Flutter project.
