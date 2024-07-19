@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'models/match_model.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,11 @@ class MyApp extends StatelessWidget {
         title: 'Score App',
         theme: ThemeData(
           useMaterial3: true,
+          filledButtonTheme: FilledButtonThemeData(
+            style: FilledButton.styleFrom(
+              foregroundColor: Colors.white, // Color del texto del botón
+            ),
+          ),
           colorScheme: ColorScheme.fromSeed(
               seedColor: const Color(0xff2c8455), brightness: Brightness.dark),
         ),
@@ -64,41 +70,39 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  var selectedIndex = 0;
+  int selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     Widget page;
     Widget? floatingActionButton;
-    const formKey = Key('form_key_abm_match');
 
-    void redirectTo(int indexPage) {
-      setState(() {
-        selectedIndex = indexPage;
-      });
-    }
+    // const formKey = Key('form_key_abm_match');
+
+    // void redirectTo(int indexPage) {
+    //   setState(() {
+    //     selectedIndex = indexPage;
+    //   });
+    // }
 
     switch (selectedIndex) {
       case 0:
         page = const MatchesPage();
         floatingActionButton = FloatingActionButton(
             onPressed: () {
-              setState(() {
-                selectedIndex = 1;
-              });
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(builder: (context) => const Placeholder()),
-              // );
+              // setState(() {
+              //   selectedIndex = 1;
+              // });
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ABMMatchPage()),
+              );
             },
             tooltip: 'Add Match',
             child: const Icon(Icons.add));
         break;
       case 1:
-        page = ABMMatchPage(
-          formKey: formKey,
-          redirectTo: redirectTo,
-        );
+        page = const Placeholder();
         break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
@@ -106,20 +110,35 @@ class _MyHomePageState extends State<MyHomePage> {
 
     return LayoutBuilder(builder: (context, constraints) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'SCORE APP',
-            style: TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 20, letterSpacing: 4),
-          ),
-          toolbarHeight: 50,
-          elevation: 10,
-          centerTitle: false,
-        ),
+        appBar: const AppBarMain(),
         body: page,
         floatingActionButton: floatingActionButton,
       );
     });
+  }
+}
+
+class AppBarMain extends StatelessWidget implements PreferredSizeWidget {
+  @override
+  final Size preferredSize;
+
+  const AppBarMain({
+    this.preferredSize = const Size.fromHeight(50.0),
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      title: const Text(
+        'SCORE APP',
+        style: TextStyle(
+            fontWeight: FontWeight.bold, fontSize: 20, letterSpacing: 4),
+      ),
+      toolbarHeight: 50,
+      elevation: 10,
+      centerTitle: false,
+    );
   }
 }
 
@@ -163,6 +182,7 @@ class MatchesPage extends StatelessWidget {
   }
 }
 
+
 class CardMatch extends StatelessWidget {
   const CardMatch({
     super.key,
@@ -173,18 +193,39 @@ class CardMatch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String score = '';
+
+    if (match['local_score'] != null && match['visit_score'] != null) {
+     score = '${match['local_score']} - ${match['visit_score']}';
+    }
+    
     return ListTile(
-        title: Text('${match['local_team']} vs ${match['visit_team']}',
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 3)),
-        subtitle: Text('${match['difficulty']} - ${match['tournament']}'),
-        trailing: Text('${match['local_score']} - ${match['visit_score']}'));
+      title: Text('${match['local_team']} vs ${match['visit_team']}',
+              style: const TextStyle(
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 14, 
+                      letterSpacing: 3
+             )
+            ),
+      subtitle: Text('${match['difficulty']} - ${match['tournament']}'),
+      trailing: Text(score),
+      onTap: () {
+        Match pMath  = Match.fromJson(match);
+   
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ABMMatchPage(match: pMath)),
+        );
+      },
+    );
   }
 }
 
 class ABMMatchPage extends StatelessWidget {
-  final Key formKey;
-  final void Function(int) redirectTo;
+  //final Key formKey;
+  final formKey = GlobalKey<FormState>();
+  final Match? match;
+  // final void Function(int) redirectTo;
 
   final TextEditingController _localTeamController = TextEditingController();
   final TextEditingController _visitTeamController = TextEditingController();
@@ -194,20 +235,44 @@ class ABMMatchPage extends StatelessWidget {
   final TextEditingController _tournamentController = TextEditingController();
 
   ABMMatchPage({
-    required this.formKey,
-    required this.redirectTo,
+    //required this.formKey,
+    //required this.redirectTo,
+    this.match,
     super.key,
   });
 
   Future<List<Map<String, dynamic>>> saveMatch() async {
-    final data = await Supabase.instance.client.from('matches').insert({
-      'local_team': _localTeamController.text,
-      'visit_team': _visitTeamController.text,
-      'local_score': _localScoreController.text,
-      'visit_score': _visitScoreController.text,
-      'difficulty': _difficultyController.text,
-      'tournament': _tournamentController.text,
-    }).select();
+    final List<Map<String, dynamic>> data;  
+
+    if (match!=null && match!.id > 0) {
+      data = await Supabase.instance.client
+      .from('matches')
+      .update({
+        'local_team': _localTeamController.text,
+        'visit_team': _visitTeamController.text,
+        'local_score': _localScoreController.text != '' ? _localScoreController.text : null,
+        'visit_score': _visitScoreController.text != '' ? _visitScoreController.text : null,
+        'difficulty': _difficultyController.text,
+        'tournament': _tournamentController.text,
+      })
+      .eq('id', match!.id)
+      .select();
+    }
+    else { 
+      // ToDo: Add validation
+      data = await Supabase.instance.client
+      .from('matches')
+      .insert({
+        'local_team': _localTeamController.text,
+        'visit_team': _visitTeamController.text,
+        'local_score': _localScoreController.text != '' ? _localScoreController.text : null,
+        'visit_score': _visitScoreController.text != '' ? _visitScoreController.text : null,
+        'difficulty': _difficultyController.text,
+        'tournament': _tournamentController.text,
+      })
+      .select(); 
+    }
+
     return data;
   }
 
@@ -221,18 +286,33 @@ class ABMMatchPage extends StatelessWidget {
 
   List<DropdownMenuEntry<String>> get tournaments {
     List<DropdownMenuEntry<String>> items = [
-      const DropdownMenuEntry(value: "EFL Champ.", label: "EFL Champ."),
-      const DropdownMenuEntry(value: "Emi. FA Cup", label: "Emi. FA Cup"),
       const DropdownMenuEntry(value: "Premier League", label: "Premier League"),
+      const DropdownMenuEntry(value: "Emi. FA Cup", label: "Emi. FA Cup"),
+      const DropdownMenuEntry(value: "Carabao Cup", label: "Carabao Cup"),
+      const DropdownMenuEntry(value: "EFL Champ.", label: "EFL Champ."),
     ];
     return items;
   }
 
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
+    //MyAppState appState = context.watch<MyAppState>();
+    Widget page;
 
-    return Form(
+    final filledButtonCancelTheme = FilledButton.styleFrom(
+      backgroundColor: Colors.red, // Color de fondo del botón
+    );
+
+    if (match != null && match!.id > 0) {
+      _localTeamController.text = match!.localTeam;
+      _visitTeamController.text = match!.visitTeam;
+      _localScoreController.text = match!.localScore.toString();
+      _visitScoreController.text = match!.visitScore.toString();
+      _difficultyController.text = match!.difficulty;
+      _tournamentController.text = match!.tournament;
+    }
+
+    page = Form(
       key: formKey,
       child: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -242,14 +322,14 @@ class ABMMatchPage extends StatelessWidget {
             const SizedBox(height: 10),
             DropdownMenu(
               controller: _difficultyController,
-              initialSelection: "Clase Mundial",
+              initialSelection: match?.difficulty ?? "Clase Mundial",
               dropdownMenuEntries: difficulties,
               label: const Text("Difficulty"),
             ),
             const SizedBox(height: 10),
             DropdownMenu(
               controller: _tournamentController,
-              initialSelection: "EFL Champ.",
+              initialSelection: match?.tournament ?? "Premier League",
               dropdownMenuEntries: tournaments,
               label: const Text("Competition"),
             ),
@@ -275,8 +355,7 @@ class ABMMatchPage extends StatelessWidget {
                     textAlign: TextAlign.right,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
-                      FilteringTextInputFormatter
-                          .digitsOnly // Permitir solo dígitos numérico
+                      FilteringTextInputFormatter.digitsOnly,
                     ],
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
@@ -308,8 +387,7 @@ class ABMMatchPage extends StatelessWidget {
                     textAlign: TextAlign.right,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
-                      FilteringTextInputFormatter
-                          .digitsOnly // Permitir solo dígitos numéricos
+                      FilteringTextInputFormatter.digitsOnly,
                     ],
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
@@ -326,25 +404,33 @@ class ABMMatchPage extends StatelessWidget {
                 FilledButton(
                   onPressed: () {
                     saveMatch();
-                    redirectTo(0);
-                    appState.updateMatches();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MyHomePage()),
+                    );
                   },
                   child: const Text("Save"),
                 ),
                 const SizedBox(width: 10),
                 FilledButton(
-                  style: const ButtonStyle(
-                      backgroundColor: MaterialStatePropertyAll(Colors.red)),
+                  style: filledButtonCancelTheme,
                   onPressed: () {
-                    redirectTo(0);
+                    Navigator.pop(context);
                   },
                   child: const Text("Cancel"),
                 ),
               ],
-            )
+            ),
           ],
         ),
       ),
     );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      return Scaffold(
+        appBar: const AppBarMain(),
+        body: page,
+      );
+    });
   }
 }
