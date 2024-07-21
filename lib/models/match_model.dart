@@ -22,8 +22,8 @@ class Match {
       id: json['id'],
       localTeam: json['local_team'],
       visitTeam: json['visit_team'],
-      localScore: json['local_score'],
-      visitScore: json['visit_score'],
+      localScore: json['local_score'] ?? 0,
+      visitScore: json['visit_score'] ?? 0,
       difficulty: json['difficulty'],
       tournament: json['tournament'],
     );

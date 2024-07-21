@@ -49,6 +49,7 @@ class MyApp extends StatelessWidget {
 
 class MyAppState extends ChangeNotifier {
   PostgrestTransformBuilder<List<Map<String, dynamic>>>? matches;
+  // List<Map<String, dynamic>>? tournaments;
 
   void updateMatches() {
     matches = Supabase.instance.client
@@ -60,6 +61,15 @@ class MyAppState extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  Future<List<Map<String, dynamic>>> getTournaments()  {
+     return Supabase.instance.client
+              .from('tournaments')
+              .select('id, name, description')
+              .eq('active', true)
+              .order('order', ascending: true);
+  }
+
 }
 
 class MyHomePage extends StatefulWidget {
@@ -182,7 +192,6 @@ class MatchesPage extends StatelessWidget {
   }
 }
 
-
 class CardMatch extends StatelessWidget {
   const CardMatch({
     super.key,
@@ -225,8 +234,8 @@ class ABMMatchPage extends StatelessWidget {
   //final Key formKey;
   final formKey = GlobalKey<FormState>();
   final Match? match;
-  // final void Function(int) redirectTo;
 
+  // final void Function(int) redirectTo;
   final TextEditingController _localTeamController = TextEditingController();
   final TextEditingController _visitTeamController = TextEditingController();
   final TextEditingController _localScoreController = TextEditingController();
@@ -284,20 +293,19 @@ class ABMMatchPage extends StatelessWidget {
     return items;
   }
 
-  List<DropdownMenuEntry<String>> get tournaments {
-    List<DropdownMenuEntry<String>> items = [
-      const DropdownMenuEntry(value: "Premier League", label: "Premier League"),
-      const DropdownMenuEntry(value: "Emi. FA Cup", label: "Emi. FA Cup"),
-      const DropdownMenuEntry(value: "Carabao Cup", label: "Carabao Cup"),
-      const DropdownMenuEntry(value: "EFL Champ.", label: "EFL Champ."),
-    ];
-    return items;
-  }
+  // List<DropdownMenuEntry<String>> get tournaments {
+  //   List<DropdownMenuEntry<String>> items = [
+  //     const DropdownMenuEntry(value: "Premier League", label: "Premier League"),
+  //     const DropdownMenuEntry(value: "Emi. FA Cup", label: "Emi. FA Cup"),
+  //     const DropdownMenuEntry(value: "Carabao Cup", label: "Carabao Cup"),
+  //     const DropdownMenuEntry(value: "EFL Champ.", label: "EFL Champ."),
+  //   ];
+  //   return items;
+  // }
 
   @override
   Widget build(BuildContext context) {
     //MyAppState appState = context.watch<MyAppState>();
-    Widget page;
 
     final filledButtonCancelTheme = FilledButton.styleFrom(
       backgroundColor: Colors.red, // Color de fondo del botón
@@ -312,124 +320,143 @@ class ABMMatchPage extends StatelessWidget {
       _tournamentController.text = match!.tournament;
     }
 
-    page = Form(
-      key: formKey,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            const Text("New Match"),
-            const SizedBox(height: 10),
-            DropdownMenu(
-              controller: _difficultyController,
-              initialSelection: match?.difficulty ?? "Clase Mundial",
-              dropdownMenuEntries: difficulties,
-              label: const Text("Difficulty"),
-            ),
-            const SizedBox(height: 10),
-            DropdownMenu(
-              controller: _tournamentController,
-              initialSelection: match?.tournament ?? "Premier League",
-              dropdownMenuEntries: tournaments,
-              label: const Text("Competition"),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 200,
-                  child: TextField(
-                    controller: _localTeamController,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: "Local Team",
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                SizedBox(
-                  width: 70,
-                  child: TextField(
-                    controller: _localScoreController,
-                    textAlign: TextAlign.right,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: 'Score',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const Text("vs"),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 200,
-                  child: TextField(
-                    controller: _visitTeamController,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: "Visit Team",
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                SizedBox(
-                  width: 70,
-                  child: TextField(
-                    controller: _visitScoreController,
-                    textAlign: TextAlign.right,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: 'Score',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FilledButton(
-                  onPressed: () {
-                    saveMatch();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MyHomePage()),
-                    );
-                  },
-                  child: const Text("Save"),
-                ),
-                const SizedBox(width: 10),
-                FilledButton(
-                  style: filledButtonCancelTheme,
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text("Cancel"),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+    final appState = context.watch<MyAppState>();
+    var futureTournaments = appState.getTournaments();
 
     return LayoutBuilder(builder: (context, constraints) {
       return Scaffold(
         appBar: const AppBarMain(),
-        body: page,
+        body: FutureBuilder<List<Map<String, dynamic>>>(
+          future: futureTournaments,
+          builder: (context, snapshot) {
+            
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final lstTournaments = snapshot.data ?? [];
+
+            if (lstTournaments.isEmpty) {
+              return const Center(child: Text('No data found'));
+            }
+
+            final tournaments = lstTournaments.map((item) => DropdownMenuEntry(value: item['name'], label: item['name'])).toList();
+
+            return Form(
+                    key: formKey,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        children: [
+                          const Text("New Match"),
+                          const SizedBox(height: 10),
+                          DropdownMenu(
+                            controller: _difficultyController,
+                            initialSelection: match?.difficulty ?? "Clase Mundial",
+                            dropdownMenuEntries: difficulties,
+                            label: const Text("Difficulty"),
+                          ),
+                          const SizedBox(height: 10),
+                          DropdownMenu(
+                            controller: _tournamentController,
+                            initialSelection: match?.tournament ?? tournaments.first.value,
+                            dropdownMenuEntries: tournaments,
+                            label: const Text("Competition"),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 200,
+                                child: TextField(
+                                  controller: _localTeamController,
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    labelText: "Local Team",
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              SizedBox(
+                                width: 70,
+                                child: TextField(
+                                  controller: _localScoreController,
+                                  textAlign: TextAlign.right,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    labelText: 'Score',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Text("vs"),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 200,
+                                child: TextField(
+                                  controller: _visitTeamController,
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    labelText: "Visit Team",
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              SizedBox(
+                                width: 70,
+                                child: TextField(
+                                  controller: _visitScoreController,
+                                  textAlign: TextAlign.right,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    labelText: 'Score',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 15),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              FilledButton(
+                                onPressed: () {
+                                  saveMatch();
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const MyHomePage()),
+                                    (Route<dynamic> route) => false,
+                                  );
+                                },
+                                child: const Text("Save"),
+                              ),
+                              const SizedBox(width: 10),
+                              FilledButton(
+                                style: filledButtonCancelTheme,
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Cancel"),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+          },  
+        )
       );
     });
   }
