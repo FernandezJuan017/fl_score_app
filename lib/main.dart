@@ -51,8 +51,8 @@ class MyApp extends StatelessWidget {
 class MyAppState extends ChangeNotifier {
   PostgrestTransformBuilder<List<Map<String, dynamic>>>? matches;
 
-  UserTeam userTeam = UserTeam(
-    id:3,
+  UserTeam currentUserTeam = const UserTeam(
+    id: 3,
     userId: 1,
     teamId: 3,
     teamName: 'Villarreal',
@@ -73,20 +73,20 @@ class MyAppState extends ChangeNotifier {
         .from('matches')
         .select(
             'id, local_team, visit_team, local_score,visit_score, tournament, difficulty, has_penalty, local_penalty, visit_penalty, note')
+        .eq('user_team_id', currentUserTeam.id)
         .limit(10)
         .order('created_at', ascending: false);
 
     notifyListeners();
   }
 
-  Future<List<Map<String, dynamic>>> getTournaments()  {
-     return Supabase.instance.client
-              .from('tournaments')
-              .select('id, name, description')
-              .eq('active', true)
-              .order('order', ascending: true);
+  Future<List<Map<String, dynamic>>> getTournaments() {
+    return Supabase.instance.client
+        .from('tournaments')
+        .select('id, name, description')
+        .eq('active', true)
+        .order('order', ascending: true);
   }
-
 }
 
 class MyHomePage extends StatefulWidget {
@@ -171,10 +171,6 @@ class AppBarMain extends StatelessWidget implements PreferredSizeWidget {
 
 class MatchesPage extends StatelessWidget {
   const MatchesPage({super.key});
-  // ToDo:
-  // 1- Add function to add matches
-  // 2- Add boton to cancel matches
-  // 3- Add input to score the matches
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +178,8 @@ class MatchesPage extends StatelessWidget {
     appState.updateMatches();
 
     var future = appState.matches;
+
+    var currenUserTeam = appState.currentUserTeam;
 
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: future,
@@ -196,13 +194,26 @@ class MatchesPage extends StatelessWidget {
           return const Center(child: Text('No matches found'));
         }
 
-        return ListView.builder(
-          itemCount: matches.length,
-          itemBuilder: ((context, index) {
-            final match = matches[index];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+                "${currenUserTeam.teamName} - ${currenUserTeam.dtName}, ${currenUserTeam.dtLastName}",
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    letterSpacing: 3)),
+            const SizedBox(height: 10),
+            Expanded(
+                child: ListView.builder(
+                    itemCount: matches.length,
+                    itemBuilder: ((context, index) {
+                      final match = matches[index];
 
-            return CardMatch(match: match);
-          }),
+                      return CardMatch(match: match);
+                    }))),
+            const SizedBox(height: 65),
+          ],
         );
       },
     );
@@ -222,28 +233,22 @@ class CardMatch extends StatelessWidget {
     String score = '';
 
     if (match['local_score'] != null && match['visit_score'] != null) {
-     score = '${match['local_score']} - ${match['visit_score']}';
+      score = '${match['local_score']} - ${match['visit_score']}';
     }
-    
+
     return ListTile(
       title: Text('${match['local_team']} vs ${match['visit_team']}',
-              style: const TextStyle(
-                      fontWeight: FontWeight.bold, 
-                      fontSize: 14, 
-                      letterSpacing: 3
-             )
-            ),
+          style: const TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 3)),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('${match['difficulty']} - ${match['tournament']}'),
           // Icon(Icons.check_circle, size: 12, color: Colors.green),
           CircleAvatar(
-              backgroundColor: Colors.grey.shade800,
-              radius: 9,
-              child: const Text('G',
-                           style: TextStyle(fontSize: 10)
-            ),
+            backgroundColor: Colors.grey.shade800,
+            radius: 9,
+            child: const Text('G', style: TextStyle(fontSize: 10)),
           ),
           // Chip(
           //   avatar: CircleAvatar(
@@ -256,8 +261,8 @@ class CardMatch extends StatelessWidget {
       ),
       trailing: Text(score),
       onTap: () {
-        Match pMath  = Match.fromJson(match);
-   
+        Match pMath = Match.fromJson(match);
+
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => ABMMatchPage(match: pMath)),
@@ -288,35 +293,39 @@ class ABMMatchPage extends StatelessWidget {
   });
 
   Future<List<Map<String, dynamic>>> saveMatch() async {
-    final List<Map<String, dynamic>> data;  
+    final List<Map<String, dynamic>> data;
 
-    if (match!=null && match!.id > 0) {
+    if (match != null && match!.id > 0) {
       data = await Supabase.instance.client
-      .from('matches')
-      .update({
-        'local_team': _localTeamController.text,
-        'visit_team': _visitTeamController.text,
-        'local_score': _localScoreController.text != '' ? _localScoreController.text : null,
-        'visit_score': _visitScoreController.text != '' ? _visitScoreController.text : null,
-        'difficulty': _difficultyController.text,
-        'tournament': _tournamentController.text,
-      })
-      .eq('id', match!.id)
-      .select();
-    }
-    else { 
+          .from('matches')
+          .update({
+            'local_team': _localTeamController.text,
+            'visit_team': _visitTeamController.text,
+            'local_score': _localScoreController.text != ''
+                ? _localScoreController.text
+                : null,
+            'visit_score': _visitScoreController.text != ''
+                ? _visitScoreController.text
+                : null,
+            'difficulty': _difficultyController.text,
+            'tournament': _tournamentController.text,
+          })
+          .eq('id', match!.id)
+          .select();
+    } else {
       // ToDo: Add validation
-      data = await Supabase.instance.client
-      .from('matches')
-      .insert({
+      data = await Supabase.instance.client.from('matches').insert({
         'local_team': _localTeamController.text,
         'visit_team': _visitTeamController.text,
-        'local_score': _localScoreController.text != '' ? _localScoreController.text : null,
-        'visit_score': _visitScoreController.text != '' ? _visitScoreController.text : null,
+        'local_score': _localScoreController.text != ''
+            ? _localScoreController.text
+            : null,
+        'visit_score': _visitScoreController.text != ''
+            ? _visitScoreController.text
+            : null,
         'difficulty': _difficultyController.text,
         'tournament': _tournamentController.text,
-      })
-      .select(); 
+      }).select();
     }
 
     return data;
@@ -362,139 +371,142 @@ class ABMMatchPage extends StatelessWidget {
 
     return LayoutBuilder(builder: (context, constraints) {
       return Scaffold(
-        appBar: const AppBarMain(),
-        body: FutureBuilder<List<Map<String, dynamic>>>(
-          future: futureTournaments,
-          builder: (context, snapshot) {
-            
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final lstTournaments = snapshot.data ?? [];
+          appBar: const AppBarMain(),
+          body: FutureBuilder<List<Map<String, dynamic>>>(
+            future: futureTournaments,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final lstTournaments = snapshot.data ?? [];
 
-            if (lstTournaments.isEmpty) {
-              return const Center(child: Text('No data found'));
-            }
+              if (lstTournaments.isEmpty) {
+                return const Center(child: Text('No data found'));
+              }
 
-            final tournaments = lstTournaments.map((item) => DropdownMenuEntry(value: item['name'], label: item['name'])).toList();
+              final tournaments = lstTournaments
+                  .map((item) => DropdownMenuEntry(
+                      value: item['name'], label: item['name']))
+                  .toList();
 
-            return Form(
-                    key: formKey,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
+              return Form(
+                key: formKey,
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    children: [
+                      const Text("New Match"),
+                      const SizedBox(height: 10),
+                      DropdownMenu(
+                        controller: _difficultyController,
+                        initialSelection: match?.difficulty ?? "Clase Mundial",
+                        dropdownMenuEntries: difficulties,
+                        label: const Text("Difficulty"),
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownMenu(
+                        controller: _tournamentController,
+                        initialSelection:
+                            match?.tournament ?? tournaments.first.value,
+                        dropdownMenuEntries: tournaments,
+                        label: const Text("Competition"),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text("New Match"),
-                          const SizedBox(height: 10),
-                          DropdownMenu(
-                            controller: _difficultyController,
-                            initialSelection: match?.difficulty ?? "Clase Mundial",
-                            dropdownMenuEntries: difficulties,
-                            label: const Text("Difficulty"),
+                          SizedBox(
+                            width: 200,
+                            child: TextField(
+                              controller: _localTeamController,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: "Local Team",
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 10),
-                          DropdownMenu(
-                            controller: _tournamentController,
-                            initialSelection: match?.tournament ?? tournaments.first.value,
-                            dropdownMenuEntries: tournaments,
-                            label: const Text("Competition"),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 200,
-                                child: TextField(
-                                  controller: _localTeamController,
-                                  decoration: const InputDecoration(
-                                    border: OutlineInputBorder(),
-                                    labelText: "Local Team",
-                                  ),
-                                ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 70,
+                            child: TextField(
+                              controller: _localScoreController,
+                              textAlign: TextAlign.right,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Score',
                               ),
-                              const SizedBox(width: 10),
-                              SizedBox(
-                                width: 70,
-                                child: TextField(
-                                  controller: _localScoreController,
-                                  textAlign: TextAlign.right,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                  ],
-                                  decoration: const InputDecoration(
-                                    border: OutlineInputBorder(),
-                                    labelText: 'Score',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Text("vs"),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 200,
-                                child: TextField(
-                                  controller: _visitTeamController,
-                                  decoration: const InputDecoration(
-                                    border: OutlineInputBorder(),
-                                    labelText: "Visit Team",
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              SizedBox(
-                                width: 70,
-                                child: TextField(
-                                  controller: _visitScoreController,
-                                  textAlign: TextAlign.right,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                  ],
-                                  decoration: const InputDecoration(
-                                    border: OutlineInputBorder(),
-                                    labelText: 'Score',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 15),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              FilledButton(
-                                onPressed: () {
-                                  saveMatch();
-                                  Navigator.pushAndRemoveUntil(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const MyHomePage()),
-                                    (Route<dynamic> route) => false,
-                                  );
-                                },
-                                child: const Text("Save"),
-                              ),
-                              const SizedBox(width: 10),
-                              FilledButton(
-                                style: filledButtonCancelTheme,
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                },
-                                child: const Text("Cancel"),
-                              ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  );
-          },  
-        )
-      );
+                      const Text("vs"),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 200,
+                            child: TextField(
+                              controller: _visitTeamController,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: "Visit Team",
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 70,
+                            child: TextField(
+                              controller: _visitScoreController,
+                              textAlign: TextAlign.right,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Score',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FilledButton(
+                            onPressed: () {
+                              saveMatch();
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => const MyHomePage()),
+                                (Route<dynamic> route) => false,
+                              );
+                            },
+                            child: const Text("Save"),
+                          ),
+                          const SizedBox(width: 10),
+                          FilledButton(
+                            style: filledButtonCancelTheme,
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Text("Cancel"),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ));
     });
   }
 }
