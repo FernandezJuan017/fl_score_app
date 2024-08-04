@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/match_model.dart';
+import 'models/user_team_model.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +50,22 @@ class MyApp extends StatelessWidget {
 
 class MyAppState extends ChangeNotifier {
   PostgrestTransformBuilder<List<Map<String, dynamic>>>? matches;
+
+  UserTeam userTeam = UserTeam(
+    id:3,
+    userId: 1,
+    teamId: 3,
+    teamName: 'Villarreal',
+    teamDescription: '',
+    teamCountry: 'España',
+    startDate: '',
+    finishDate: '',
+    isCurrent: true,
+    dtLastName: 'Dominguez',
+    dtName: 'Eduardo',
+    createdAt: '',
+  );
+
   // List<Map<String, dynamic>>? tournaments;
 
   void updateMatches() {
@@ -216,7 +233,27 @@ class CardMatch extends StatelessWidget {
                       letterSpacing: 3
              )
             ),
-      subtitle: Text('${match['difficulty']} - ${match['tournament']}'),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${match['difficulty']} - ${match['tournament']}'),
+          // Icon(Icons.check_circle, size: 12, color: Colors.green),
+          CircleAvatar(
+              backgroundColor: Colors.grey.shade800,
+              radius: 9,
+              child: const Text('G',
+                           style: TextStyle(fontSize: 10)
+            ),
+          ),
+          // Chip(
+          //   avatar: CircleAvatar(
+          //     backgroundColor: Colors.grey.shade800,
+          //     child: const Text('A'),
+          //   ),
+          //   label: const Text('Aaron Burr'),
+          // )
+        ],
+      ),
       trailing: Text(score),
       onTap: () {
         Match pMath  = Match.fromJson(match);
