@@ -6,6 +6,7 @@ class Match {
   final int visitScore;
   final String difficulty;
   final String tournament;
+  final String? result;
 
   const Match({
     required this.id,
@@ -15,6 +16,7 @@ class Match {
     required this.visitScore,
     required this.difficulty,
     required this.tournament,
+    this.result,
   }); 
 
   factory Match.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,40 @@ class Match {
       visitScore: json['visit_score'] ?? 0,
       difficulty: json['difficulty'],
       tournament: json['tournament'],
+      result: json['result'] ?? '-',
     );
   }
+
+  // String getResult(String team) {
+  //   var res= "-";
+  //   bool wasPlayed = localScore > 0 || visitScore > 0;
+
+  //   if (!wasPlayed) {
+  //     return res;
+  //   }
+  //   var isLocal = team == localTeam;
+
+  //   if (isLocal) {
+  //     if (localScore > visitScore) {
+  //       res = "G";
+  //     }
+  //      else if (localScore < visitScore) {
+  //       res = "P";
+  //     } 
+  //     else {
+  //       res = "E";
+  //     }
+  //   } 
+  //   else {
+  //     if (visitScore > localScore) {
+  //       res = "G";
+  //     } else if (visitScore < localScore) {
+  //       res = "P";
+  //     } else {
+  //       res = "E";
+  //     }
+  //   }
+
+  //   return res;
+  // }
 }
